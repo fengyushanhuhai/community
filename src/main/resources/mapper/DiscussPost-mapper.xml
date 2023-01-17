@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--namespace声明该配置文件所对应的接口-->
+<mapper namespace="com.nowcoder.community.Dao.DiscussPostMapper">
+
+    <sql id="selectFields">
+        id, user_id, title, content, type, status,create_time, comment_count, score
+    </sql>   <!--将查询字段提取出来并公有-->
+
+    <select id="selectDiscussPosts" resultType="DiscussPost"> /*不用声明list，可以检测到*/
+        select <include refid="selectFields"></include> from discuss_post
+        where status != 2   /*帖子状态不能是拉黑*/
+        <if test="userId!=0">/*if判断 userId 不能为0*/
+            and user_id = #{userId}
+        </if>
+        order by type desc, create_time desc    /*类型和发帖时间的联合倒序*/
+        limit #{offset}, #{limit}               /*分页*/
+    </select>
+
+    <select id="selectDiscussPostCount" resultType="int">
+        select count(id) from discuss_post
+        where status != 2
+        <if test="userId!=0">/*if判断 userId 不能为0*/
+            and user_id = #{userId}
+        </if>
+    </select>
+
+</mapper>
