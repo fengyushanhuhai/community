@@ -9,6 +9,12 @@
         id, user_id, title, content, type, status,create_time, comment_count, score
     </sql>   <!--将查询字段提取出来并公有-->
 
+    <sql id="insertFields">
+        user_id, title, content, type, status,create_time, comment_count, score
+    </sql>   <!--将查询字段提取出来并公有-->
+
+
+
     <select id="selectDiscussPosts" resultType="DiscussPost"> /*不用声明list，可以检测到*/
         select <include refid="selectFields"></include> from discuss_post
         where status != 2   /*帖子状态不能是拉黑*/
@@ -26,5 +32,20 @@
             and user_id = #{userId}
         </if>
     </select>
+
+    <insert id="insertDiscussPost" parameterType="DiscussPost">
+        insert into discuss_post(<include refid="insertFields"></include>)
+        values (#{userId}, #{title}, #{content}, #{type}, #{status}, #{createTime}, #{commentCount}, #{score})
+    </insert>
+
+    <select id="selectDiscussPostById" resultType="DiscussPost">
+        select <include refid="selectFields"></include>
+        from discuss_post
+        where id = #{id}
+    </select>
+
+    <update id="updateCommentCount">
+        update discuss_post set comment_count = #{commentCount} where id = #{id}
+    </update>
 
 </mapper>

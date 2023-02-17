@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import com.alibaba.fastjson.JSONObject;
 import org.springframework.util.DigestUtils;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 // 工具类只用提供静态方法，不用注入
@@ -46,6 +47,14 @@ public class CommunityUtil {
 
     public static String getJSONString(int code) {
         return getJSONString(code, null, null);
+    }
+
+
+    public static void main(String[] args) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("name","张三");
+        map.put("age",25);
+        System.out.println(getJSONString(0, "ok", map));
     }
 
 }

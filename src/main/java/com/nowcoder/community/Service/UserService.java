@@ -7,10 +7,13 @@ import com.nowcoder.community.entity.User;
 import com.nowcoder.community.util.CommunityConstant;
 import com.nowcoder.community.util.CommunityUtil;
 import com.nowcoder.community.util.MailClient;
+import com.nowcoder.community.util.RedisKeyUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
@@ -18,6 +21,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserService implements CommunityConstant {
@@ -25,13 +29,50 @@ public class UserService implements CommunityConstant {
     @Autowired
     private UserMapper userMapper;
 
+//    @Autowired
+//    private LoginTicketMapper loginTicketMapper;
+
     @Autowired
-    private LoginTicketMapper loginTicketMapper;
+    private RedisTemplate redisTemplate;
 
 
     // 根据用户id查询用户
     public User findUserById(int id){
-        return userMapper.selectById(id);
+        // 将用户应该缓存到redis 提高效率
+        // return userMapper.selectById(id);
+
+        // 先从cache中查
+        User user = getCache(id);
+        if (user == null){
+            user = initCache(id);   // 如果缓存中没有查到说明要初始化缓存数据
+        }
+        return user;
+    }
+
+    // 根据用户名查询用户
+    public User findUserByName(String username){
+        return userMapper.selectByName(username);
+    }
+
+
+    // 1、优先从缓存中取值
+    private User getCache(int userId){
+        String redisKey = RedisKeyUtil.getUserKey(userId);
+        return (User) redisTemplate.opsForValue().get(redisKey);
+    }
+
+
+    // 2、取不到就从初始化缓存数据
+    private User initCache(int userId){
+        User user = userMapper.selectById(userId);
+        String redisKey = RedisKeyUtil.getUserKey(userId);
+        redisTemplate.opsForValue().set(redisKey,user,3600, TimeUnit.SECONDS);      // 并且给一个过期时间
+        return user;
+    }
+    // 3、数据变化时清除缓存数据
+    private void CacheClear(int userId){
+        String redisKey = RedisKeyUtil.getUserKey(userId);
+        redisTemplate.delete(redisKey);
     }
 
 
@@ -110,12 +151,14 @@ public class UserService implements CommunityConstant {
     }
 
 
+    // 激活
     public int activation(int userId, String code){
         User user = userMapper.selectById(userId);
         if(user.getStatus() == 1){      // 如果已经激活，返回重复
             return ACTIVATION_REPEAT;
         } else if(user.getActivationCode().equals(code)){   // 成功激活
             userMapper.UpdateStatus(userId,1);
+            CacheClear(userId); // 清理redis缓存
             return ACTIVATION_SUCCESS;
         } else {                            // 激活失败
             return ACTIVATION_FAILURE;
@@ -164,7 +207,10 @@ public class UserService implements CommunityConstant {
         loginTicket.setTicket(CommunityUtil.generateUUID());    // 凭证为随机字符串
         loginTicket.setStatus(0);                               // 状态
         loginTicket.setExpired(new Date(System.currentTimeMillis() + expiredSeconds * 1000));   // 过期时间
-        loginTicketMapper.insertLoginTicket(loginTicket);       // 将登录凭证传入数据库
+//        loginTicketMapper.insertLoginTicket(loginTicket);       // 将登录凭证传入数据库
+        // 传入redis中
+        String redisKey = RedisKeyUtil.getTicketKey(loginTicket.getTicket());
+        redisTemplate.opsForValue().set(redisKey, loginTicket); // redis可以将对象序列化一个json字符串
 
         map.put("ticket",loginTicket.getTicket());      // 将ticket给客户端
         return map;
@@ -172,7 +218,12 @@ public class UserService implements CommunityConstant {
 
     // 退出
     public void logout(String ticket){
-        loginTicketMapper.updateStatus(ticket,1);       // 1 表示无效
+//        loginTicketMapper.updateStatus(ticket,1);       // 1 表示无效
+        // redis取出来修改后再传回去
+        String redisKey = RedisKeyUtil.getTicketKey(ticket);
+        LoginTicket loginTicket = (LoginTicket) redisTemplate.opsForValue().get(redisKey);  // 默认返回的类型是Object
+        loginTicket.setStatus(1);
+        redisTemplate.opsForValue().set(redisKey, loginTicket); // redis可以将对象序列化一个json字符串
     }
 
     // 重置密码
@@ -196,7 +247,61 @@ public class UserService implements CommunityConstant {
         // 重置密码
         password = CommunityUtil.MD5(password + user.getSalt());
         userMapper.UpdatePassword(user.getId(),password);
+        // 清理redis缓存
+        CacheClear(user.getId());
+
         map.put("user", user);
         return map;
     }
+
+
+    // 查询凭证
+    public LoginTicket findLoginTicket(String ticket){
+        String redisKey = RedisKeyUtil.getTicketKey(ticket);
+        return (LoginTicket) redisTemplate.opsForValue().get(redisKey);
+    }
+
+
+    // 更新用户的头像路径 返回修改的行数
+    public int updateHeader(int userId, String headerUrl){
+        int rows =  userMapper.UpdateHeader(userId,headerUrl);
+        // 清理redis缓存
+        CacheClear(userId);
+        return rows;
+    }
+
+
+    // 修改密码
+    public Map<String,Object> updatePassword(int userId, String oldPassword, String newPassword){
+        Map<String,Object> map = new HashMap<>();
+
+        // 空值处理
+        if (StringUtils.isBlank(oldPassword)){
+            map.put("oldPasswordMsg","原密码不能为空！");
+            return map;
+        }
+
+        if (StringUtils.isBlank(newPassword)){
+            map.put("newPasswordMsg","新密码不能为空！");
+            return map;
+        }
+
+        // 验证原始密码
+        User user = userMapper.selectById(userId);
+        oldPassword = CommunityUtil.MD5(oldPassword + user.getSalt());
+        if (!user.getPassword().equals(oldPassword)){
+            map.put("oldPasswordMsg","原密码输入错误！");
+            return map;
+        }
+
+        // 更新密码
+        newPassword = CommunityUtil.MD5(newPassword + user.getSalt());
+        userMapper.UpdatePassword(userId,newPassword);
+        // 清理redis缓存
+        CacheClear(userId);
+        return map;
+    }
+
+
+
 }

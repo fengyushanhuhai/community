@@ -22,4 +22,16 @@ public interface DiscussPostMapper {
     // 通过userId查询当前用户一共发了多少帖子
     // @Param注解可以给参数取别名，适合用于动态sql中并且恰巧方法中有且只有一个条件，当前参数必须取别名
     int selectDiscussPostCount(@Param("userId") int userId);
+
+
+    // 增加帖子 返回增加的行数
+    int insertDiscussPost(DiscussPost discussPost);
+
+
+    // 查询帖子的详情 根据帖子的id查询帖子的详细信息
+    DiscussPost selectDiscussPostById(int id);
+
+
+    // 更新评论数量的方法
+    int updateCommentCount(int id, int commentCount);
 }

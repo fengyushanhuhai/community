@@ -2,7 +2,7 @@ package com.nowcoder.community.controller;
 
 import com.nowcoder.community.Service.AlphaService;
 import com.nowcoder.community.util.CommunityUtil;
-import com.sun.deploy.net.HttpResponse;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -217,6 +217,15 @@ public class AlphaController {
         return "get session";
     }
 
+
+    // ajax 示例 异步请求返回的不是网页而是字符串
+    @RequestMapping(path = "/ajax", method = RequestMethod.POST)
+    @ResponseBody
+    public String testAjax(String name, int age){
+        System.out.println(name);
+        System.out.println(age);
+        return CommunityUtil.getJSONString(0,"操作成功！");
+    }
 
 
 }

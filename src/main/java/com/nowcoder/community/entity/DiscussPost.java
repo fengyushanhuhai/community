@@ -12,7 +12,7 @@ public class DiscussPost {
     private int type;           // 帖子类型     0-普通; 1-置顶
     private int status;         // 帖子状态     0-正常; 1-精华; 2-拉黑
     private Date createTime;    // 创建帖子的时间
-    private int commentCount;
+    private int commentCount;   // 帖子的评论数
     private double score;       // 帖子的积分
 
     public int getId() {

@@ -2,10 +2,12 @@ package com.nowcoder.community;
 
 import com.nowcoder.community.Dao.DiscussPostMapper;
 import com.nowcoder.community.Dao.LoginTicketMapper;
+import com.nowcoder.community.Dao.MessageMapper;
 import com.nowcoder.community.Dao.UserMapper;
 
 import com.nowcoder.community.entity.DiscussPost;
 import com.nowcoder.community.entity.LoginTicket;
+import com.nowcoder.community.entity.Message;
 import com.nowcoder.community.entity.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -95,6 +97,44 @@ public class MapperTests {
         loginTicket = loginTicketMapper.selectByTicket("asfas");
         System.out.println(loginTicket);
 
+    }
+
+    @Test
+    public void testInsertDiscussPost(){
+        DiscussPost discussPost = new DiscussPost();
+        discussPost.setUserId(164);
+        discussPost.setTitle("笑死");
+        discussPost.setContent("元宵节还上班！");
+        discussPost.setType(0);
+        discussPost.setStatus(0);
+        discussPost.setCreateTime(new Date());
+        int x = discussPostMapper.insertDiscussPost(discussPost);
+        System.out.println(x);
+    }
+
+    @Autowired
+    private MessageMapper messageMapper;
+
+    @Test
+    public void testMessageOrLetter(){
+       List<Message> list =  messageMapper.selectConversations(111,0,20);
+       for (Message message : list){
+           System.out.println(message);
+       }
+
+       int count = messageMapper.selectConversationCount(111);
+        System.out.println(count);
+
+        list = messageMapper.selectLetters("111_112",0,10);
+        for (Message message : list){
+            System.out.println(message);
+        }
+
+        count = messageMapper.selectLetterCount("111_112");
+        System.out.println(count);
+
+        count = messageMapper.selectLetterUnreadCount(131,"111_131");
+        System.out.println(count);
     }
 
 

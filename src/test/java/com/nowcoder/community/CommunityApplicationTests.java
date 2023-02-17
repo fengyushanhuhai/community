@@ -13,6 +13,7 @@ import org.springframework.test.context.ContextConfiguration;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+
 @SpringBootTest
 @ContextConfiguration(classes = CommunityApplication.class)	// 在测试类中可以启动配置类
 class CommunityApplicationTests implements ApplicationContextAware {
